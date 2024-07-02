@@ -22,7 +22,9 @@ import com.llamalad7.mixinextras.sugar.Local;
 import com.railwayteam.railways.Railways;
 import com.railwayteam.railways.content.schedule.WaypointDestinationInstruction;
 import com.railwayteam.railways.mixin_interfaces.ICustomExecutableInstruction;
+import com.railwayteam.railways.mixin_interfaces.RedstoneControlled;
 import com.simibubi.create.content.trains.entity.Train;
+import com.simibubi.create.content.trains.graph.DiscoveredPath;
 import com.simibubi.create.content.trains.schedule.Schedule;
 import com.simibubi.create.content.trains.schedule.ScheduleEntry;
 import com.simibubi.create.content.trains.schedule.ScheduleRuntime;
@@ -36,6 +38,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.ArrayList;
 
 @Mixin(value = ScheduleRuntime.class, remap = false)
 public abstract class MixinScheduleRuntime {
@@ -62,6 +66,13 @@ public abstract class MixinScheduleRuntime {
 
         if (instruction instanceof ICustomExecutableInstruction customExecutableInstruction) {
             cir.setReturnValue(customExecutableInstruction.executeWithStation((ScheduleRuntime) (Object) this));
+        }
+    }
+
+    @Inject(method = "startCurrentInstruction", at = @At(value = "INVOKE_ASSIGN", target = "Lcom/simibubi/create/content/trains/entity/Navigation;findPathTo(Ljava/util/ArrayList;D)Lcom/simibubi/create/content/trains/graph/DiscoveredPath;"), cancellable = true)
+    private void railways$findBest(CallbackInfoReturnable<DiscoveredPath> cir, @Local(name = "validStations")ArrayList<GlobalStation> validStations) {
+        if (cir.getReturnValue() == null && validStations.stream().allMatch(p -> ((RedstoneControlled) p).isRedstonePowered())) {
+            cir.setReturnValue(null);
         }
     }
 

@@ -56,10 +56,7 @@ import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import org.spongepowered.asm.mixin.injection.Slice;
+import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -129,6 +126,14 @@ public abstract class MixinNavigation implements IWaypointableNavigation, IGener
     private boolean isNavigationIncompatible(boolean original, @Local Map.Entry<TrackNode, TrackEdge> target) {
         if (target.getValue().getTrackMaterial().trackType == CRTrackType.UNIVERSAL)
             return true;
+        return original;
+    }
+
+    @ModifyExpressionValue(method = "search(DDZLjava/util/ArrayList;Lcom/simibubi/create/content/trains/entity/Navigation$StationTest;)V", at = @At(value = "INVOKE", target = "Lcom/simibubi/create/content/trains/station/GlobalStation;canApproachFrom(Lcom/simibubi/create/content/trains/graph/TrackNode;)Z"))
+    boolean railways$canApproachFrom(boolean original, @Local(name = "station") GlobalStation instance) {
+        if (((RedstoneControlled) instance).isRedstonePowered()) {
+            return false;
+        }
         return original;
     }
 

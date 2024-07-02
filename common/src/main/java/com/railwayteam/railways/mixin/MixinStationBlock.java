@@ -18,10 +18,11 @@
 
 package com.railwayteam.railways.mixin;
 
-import com.railwayteam.railways.Railways;
+import com.llamalad7.mixinextras.sugar.Local;
 import com.railwayteam.railways.config.CRConfigs;
 import com.railwayteam.railways.content.conductor.ConductorEntity;
 import com.railwayteam.railways.mixin_interfaces.ICarriageConductors;
+import com.railwayteam.railways.mixin_interfaces.RedstoneControlled;
 import com.railwayteam.railways.registry.CRBlocks;
 import com.railwayteam.railways.registry.CREntities;
 import com.simibubi.create.Create;
@@ -49,13 +50,22 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
@@ -63,7 +73,24 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Mixin(value = StationBlock.class, remap = false)
-public abstract class MixinStationBlock {
+public abstract class MixinStationBlock extends MixinBlockBehaviour {
+
+    @Unique
+    private static final BooleanProperty POWERED = BlockStateProperties.POWERED;
+
+    @ModifyArg(remap = true, method = "<init>", at = @At(value = "INVOKE", target = "Lcom/simibubi/create/content/trains/station/StationBlock;registerDefaultState(Lnet/minecraft/world/level/block/state/BlockState;)V"))
+    public BlockState railways$init(BlockState par1){
+        return par1.setValue(POWERED, false);
+    }
+
+    @ModifyArg(remap = true, method = "createBlockStateDefinition", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/state/StateDefinition$Builder;add([Lnet/minecraft/world/level/block/state/properties/Property;)Lnet/minecraft/world/level/block/state/StateDefinition$Builder;"))
+    public Property<?>[] railways$createBlockStateDefinition(Property<?>[] properties){
+        Property<?>[] p = new Property[properties.length + 1];
+        System.arraycopy(properties, 0, p, 0, properties.length);
+        p[p.length -1] = POWERED;
+        return p;
+    }
+
     @Inject(method = "use", at = @At("HEAD"), cancellable = true, remap = true)
     private void autoWhistle(BlockState pState, Level pLevel, BlockPos pPos, Player pPlayer, InteractionHand pHand, BlockHitResult pHit, CallbackInfoReturnable<InteractionResult> cir){
         ItemStack itemInHand = pPlayer.getItemInHand(pHand);
@@ -193,6 +220,24 @@ public abstract class MixinStationBlock {
             if (CRBlocks.CONDUCTOR_WHISTLE_FLAG.isIn(itemInHand))
                 cir.setReturnValue(InteractionResult.PASS);
         }
+    }
+
+    @Override
+    protected void railways$neighborChanged(BlockState state, Level level, BlockPos pos, Block block, BlockPos fromPos, boolean isMoving, CallbackInfo ci) {
+        if (!level.isClientSide) {
+            boolean previouslyPowered = state.getValue(POWERED);
+            if (previouslyPowered != level.hasNeighborSignal(pos)) {
+                level.setBlock(pos, state.cycle(POWERED), 2);
+                BlockEntity be = level.getBlockEntity(pos);
+                ((RedstoneControlled) be).railways$setRedstonePowered(level.hasNeighborSignal(pos));
+            }
+        }
+    }
+
+    @ModifyArg(remap = true, method = "getStateForPlacement", at = @At(value = "INVOKE", target = "Lcom/simibubi/create/content/trains/station/StationBlock;withWater(Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/item/context/BlockPlaceContext;)Lnet/minecraft/world/level/block/state/BlockState;"))
+    public BlockState railways$getStateForPlacement(BlockState par1, @Local(argsOnly = true) BlockPlaceContext pContext){
+        return par1.setValue(POWERED, pContext.getLevel()
+                .hasNeighborSignal(pContext.getClickedPos()));
     }
 
     @Inject(method = "use", at = @At(value = "RETURN", ordinal = 1), cancellable = true, remap = true)

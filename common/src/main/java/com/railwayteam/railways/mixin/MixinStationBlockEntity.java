@@ -24,6 +24,7 @@ import com.railwayteam.railways.Railways;
 import com.railwayteam.railways.content.bogey_menu.handler.BogeyMenuHandlerServer;
 import com.railwayteam.railways.content.handcar.HandcarBlock;
 import com.railwayteam.railways.mixin_interfaces.IIndexedSchedule;
+import com.railwayteam.railways.mixin_interfaces.RedstoneControlled;
 import com.railwayteam.railways.registry.CRBogeyStyles;
 import com.railwayteam.railways.registry.CRTrackMaterials;
 import com.railwayteam.railways.util.Utils;
@@ -62,11 +63,18 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Mixin(value = StationBlockEntity.class, remap = false)
-public abstract class MixinStationBlockEntity extends SmartBlockEntity {
+public abstract class MixinStationBlockEntity extends SmartBlockEntity implements RedstoneControlled {
     @Shadow @Nullable public abstract GlobalStation getStation();
 
     private MixinStationBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
+    }
+
+    @Override
+    public void railways$setRedstonePowered(boolean value) {
+        if (getStation() != null) {
+            ((RedstoneControlled) getStation()).railways$setRedstonePowered(value);
+        }
     }
 
     @Inject(method = "trackClicked", at = @At("HEAD"))
