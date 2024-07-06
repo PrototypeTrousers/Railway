@@ -22,6 +22,7 @@ import com.llamalad7.mixinextras.sugar.Local;
 import com.railwayteam.railways.Railways;
 import com.railwayteam.railways.content.schedule.WaypointDestinationInstruction;
 import com.railwayteam.railways.mixin_interfaces.ICustomExecutableInstruction;
+import com.railwayteam.railways.mixin_interfaces.ILimited;
 import com.railwayteam.railways.mixin_interfaces.RedstoneControlled;
 import com.simibubi.create.content.trains.entity.Train;
 import com.simibubi.create.content.trains.graph.DiscoveredPath;
@@ -70,8 +71,8 @@ public abstract class MixinScheduleRuntime {
     }
 
     @Inject(method = "startCurrentInstruction", at = @At(value = "INVOKE_ASSIGN", target = "Lcom/simibubi/create/content/trains/entity/Navigation;findPathTo(Ljava/util/ArrayList;D)Lcom/simibubi/create/content/trains/graph/DiscoveredPath;"), cancellable = true)
-    private void railways$findBest(CallbackInfoReturnable<DiscoveredPath> cir, @Local(name = "validStations")ArrayList<GlobalStation> validStations) {
-        if (cir.getReturnValue() == null && validStations.stream().allMatch(p -> ((RedstoneControlled) p).isRedstonePowered())) {
+    private void railways$findBest(CallbackInfoReturnable<DiscoveredPath> cir, @Local(name = "validStations")ArrayList<GlobalStation> validStations, @Local(name = "best") DiscoveredPath best) {
+        if (best == null && validStations.stream().allMatch(p -> ((RedstoneControlled) p).isRedstonePowered() || ((ILimited) p).isLimitEnabled())) {
             cir.setReturnValue(null);
         }
     }
